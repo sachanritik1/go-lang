@@ -1,0 +1,49 @@
+package app
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/sachanritik1/go-lang/internal/api"
+	"github.com/sachanritik1/go-lang/internal/store"
+	"github.com/sachanritik1/go-lang/migrations"
+)
+
+type App struct {
+	Logger         *log.Logger
+	WorkoutHandler *api.WorkoutHandler
+	DB             *sql.DB
+}
+
+func NewApp() (*App, error) {
+	pgDB, err := store.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	err = store.MigrateFS(pgDB, migrations.FS, ".")
+	if err != nil {
+		panic(err)
+	}
+
+	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+
+	//stores
+
+	//handlers
+	workoutHandler := api.NewWorkoutHandler()
+
+	app := &App{
+		Logger:         logger,
+		WorkoutHandler: workoutHandler,
+		DB:             pgDB,
+	}
+	return app, nil
+}
+
+func (app *App) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Status is available")
+}
