@@ -32,9 +32,10 @@ func NewApp() (*App, error) {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
 	//stores
+	workoutStore := store.NewPostgresWorkoutStore(pgDB)
 
 	//handlers
-	workoutHandler := api.NewWorkoutHandler()
+	workoutHandler := api.NewWorkoutHandler(workoutStore)
 
 	app := &App{
 		Logger:         logger,
