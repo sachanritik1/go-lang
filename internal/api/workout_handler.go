@@ -95,13 +95,6 @@ func (h *WorkoutHandler) HandlerDeleteWorkout(w http.ResponseWriter, r *http.Req
 }
 
 func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Request) {
-	var workout store.Workout
-	err := json.NewDecoder(r.Body).Decode(&workout)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 
 	paramWorkoutID := chi.URLParam(r, "id")
 
@@ -116,9 +109,46 @@ func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	workout.ID = int(workoutID)
+	// find workout by id
+	workout, err := h.store.GetWorkoutByID(int(workoutID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
-	updatedWorkout, err := h.store.UpdateWorkout(&workout)
+	// make a struct for update
+	var UpdateWorkoutRequest struct {
+		Title           *string              `json:"title"`
+		Description     *string              `json:"description"`
+		DurationMinutes *int                 `json:"duration_minutes"`
+		CaloriesBurned  *int                 `json:"calories_burned"`
+		Entries         []store.WorkoutEntry `json:"workout_entries"`
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&UpdateWorkoutRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if UpdateWorkoutRequest.Title != nil {
+		workout.Title = *UpdateWorkoutRequest.Title
+	}
+	if UpdateWorkoutRequest.Description != nil {
+		workout.Description = *UpdateWorkoutRequest.Description
+	}
+	if UpdateWorkoutRequest.DurationMinutes != nil {
+		workout.DurationMinutes = *UpdateWorkoutRequest.DurationMinutes
+	}
+	if UpdateWorkoutRequest.CaloriesBurned != nil {
+		workout.CaloriesBurned = *UpdateWorkoutRequest.CaloriesBurned
+	}
+	if UpdateWorkoutRequest.Entries != nil {
+		workout.Entries = UpdateWorkoutRequest.Entries
+	}
+
+	// update workout
+	updatedWorkout, err := h.store.UpdateWorkout(workout)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
