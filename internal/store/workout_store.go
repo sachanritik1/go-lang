@@ -76,6 +76,9 @@ func (store *PostgresWorkoutStore) GetWorkoutByID(id int) (*Workout, error) {
 
 	var workout Workout
 	err := row.Scan(&workout.ID, &workout.Title, &workout.Description, &workout.DurationMinutes, &workout.CaloriesBurned)
+	if err == sql.ErrNoRows {
+		return nil, sql.ErrNoRows
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -169,9 +172,13 @@ func (store *PostgresWorkoutStore) UpdateWorkout(workout *Workout) (*Workout, er
 func (store *PostgresWorkoutStore) DeleteWorkout(id int) error {
 	query := `DELETE FROM workouts WHERE id = $1`
 	_, err := store.db.Exec(query, id)
+	if err == sql.ErrNoRows {
+		return sql.ErrNoRows
+	}
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
