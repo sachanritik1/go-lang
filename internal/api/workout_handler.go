@@ -2,10 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sachanritik1/go-lang/internal/store"
@@ -23,14 +21,13 @@ func (h *WorkoutHandler) HandlerCreateWorkout(w http.ResponseWriter, r *http.Req
 	var workout store.Workout
 	err := json.NewDecoder(r.Body).Decode(&workout)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	createdWorkout, err := h.store.CreateWorkout(&workout)
 	if err != nil {
-		http.Error(w, "Failed to create workout"+strings.Split(err.Error(), "\n")[0], http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -48,13 +45,13 @@ func (h *WorkoutHandler) HandlerGetWorkoutByID(w http.ResponseWriter, r *http.Re
 
 	workoutID, err := strconv.ParseInt(paramWorkoutID, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid workout ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	workout, err := h.store.GetWorkoutByID(int(workoutID))
 	if err != nil {
-		http.Error(w, "Failed to get workout", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -66,7 +63,7 @@ func (h *WorkoutHandler) HandlerGetWorkoutByID(w http.ResponseWriter, r *http.Re
 func (h *WorkoutHandler) HandlerGetAllWorkouts(w http.ResponseWriter, r *http.Request) {
 	workouts, err := h.store.ListWorkouts()
 	if err != nil {
-		http.Error(w, "Failed to get workouts"+strings.Split(err.Error(), "\n")[0], http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -84,13 +81,13 @@ func (h *WorkoutHandler) HandlerDeleteWorkout(w http.ResponseWriter, r *http.Req
 
 	workoutID, err := strconv.ParseInt(paramWorkoutID, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid workout ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	err = h.store.DeleteWorkout(int(workoutID))
 	if err != nil {
-		http.Error(w, "Failed to delete workout", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -102,7 +99,7 @@ func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Req
 	err := json.NewDecoder(r.Body).Decode(&workout)
 
 	if err != nil {
-		http.Error(w, "Invalid request payload"+strings.Split(err.Error(), "\n")[0], http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -115,7 +112,7 @@ func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Req
 
 	workoutID, err := strconv.ParseInt(paramWorkoutID, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid workout ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -123,7 +120,7 @@ func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Req
 
 	updatedWorkout, err := h.store.UpdateWorkout(&workout)
 	if err != nil {
-		http.Error(w, "Failed to update workout", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
