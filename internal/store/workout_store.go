@@ -36,7 +36,7 @@ func NewPostgresWorkoutStore(db *sql.DB) *PostgresWorkoutStore {
 type WorkoutStore interface {
 	CreateWorkout(workout *Workout) (*Workout, error)
 	GetWorkoutByID(id int) (*Workout, error)
-	UpdateWorkout(workout *Workout) error
+	UpdateWorkout(workout *Workout) (*Workout, error)
 	DeleteWorkout(id int) error
 	ListWorkouts() ([]*Workout, error)
 }
@@ -103,10 +103,10 @@ func (store *PostgresWorkoutStore) GetWorkoutByID(id int) (*Workout, error) {
 	return &workout, nil
 }
 
-func (store *PostgresWorkoutStore) UpdateWorkout(workout *Workout) error {
+func (store *PostgresWorkoutStore) UpdateWorkout(workout *Workout) (*Workout, error) {
 	tx, err := store.db.Begin()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -115,39 +115,123 @@ func (store *PostgresWorkoutStore) UpdateWorkout(workout *Workout) error {
 	query := `UPDATE workouts SET title = $1, description = $2, duration_minutes = $3, calories_burned = $4 WHERE id = $5`
 	result, err := tx.Exec(query, workout.Title, workout.Description, workout.DurationMinutes, workout.CaloriesBurned, workout.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if rowsAffected == 0 {
-		return sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
 
-	for _, entry := range workout.Entries {
-		entryQuery := `UPDATE workout_entries SET exercise_name = $1, sets = $2, duration_seconds = $3, reps = $4, weight = $5, notes = $6, order_index = $7 WHERE id = $8`
-		_, err := tx.Exec(entryQuery, entry.ExerciseName, entry.Sets, entry.DurationSeconds, entry.Reps, entry.Weight, entry.Notes, entry.OrderIndex, entry.ID)
+	// delete existing entries
+	deleteQuery := `DELETE FROM workout_entries WHERE workout_id = $1`
+	_, err = tx.Exec(deleteQuery, workout.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// insert updated entries
+	for i := range workout.Entries {
+		entry := &workout.Entries[i] // pointer to actual element
+		entryQuery := `INSERT INTO workout_entries
+        (workout_id, exercise_name, sets, duration_seconds, reps, weight, notes, order_index)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`
+		var insertedID int
+		err = tx.QueryRow(entryQuery,
+			workout.ID,
+			entry.ExerciseName,
+			entry.Sets,
+			entry.DurationSeconds,
+			entry.Reps,
+			entry.Weight,
+			entry.Notes,
+			entry.OrderIndex,
+		).Scan(&insertedID)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		entry.ID = insertedID        // update real element
+		entry.WorkoutID = workout.ID // set foreign-key field in struct
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return workout, nil
 }
 
 func (store *PostgresWorkoutStore) DeleteWorkout(id int) error {
-	// Implementation goes here
+	query := `DELETE FROM workouts WHERE id = $1`
+	_, err := store.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (store *PostgresWorkoutStore) ListWorkouts() ([]*Workout, error) {
-	// Implementation goes here
-	return nil, nil
+	query := `
+		SELECT 
+			w.id, w.title, w.description, w.duration_minutes, w.calories_burned,
+			we.id, we.sets, we.reps, we.weight
+		FROM workouts w
+		LEFT JOIN workout_entries we ON w.id = we.workout_id
+		ORDER BY w.id;
+	`
+
+	rows, err := store.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	workoutMap := make(map[int]*Workout)
+
+	for rows.Next() {
+		var w Workout
+		var entry WorkoutEntry
+		var entryID sql.NullInt64
+
+		err := rows.Scan(
+			&w.ID,
+			&w.Title,
+			&w.Description,
+			&w.DurationMinutes,
+			&w.CaloriesBurned,
+			&entryID,
+			&entry.Sets,
+			&entry.Reps,
+			&entry.Weight,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, exists := workoutMap[w.ID]; !exists {
+			w.Entries = []WorkoutEntry{}
+			workoutMap[w.ID] = &w
+		}
+
+		if entryID.Valid {
+			entry.ID = int(entryID.Int64)
+			workoutMap[w.ID].Entries = append(workoutMap[w.ID].Entries, entry)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var workouts []*Workout
+	for _, w := range workoutMap {
+		workouts = append(workouts, w)
+	}
+
+	return workouts, nil
 }
