@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/sachanritik1/go-lang/internal/middleware"
 	"github.com/sachanritik1/go-lang/internal/store"
 	"github.com/sachanritik1/go-lang/internal/utils"
 )
@@ -27,6 +28,15 @@ func (h *WorkoutHandler) HandlerCreateWorkout(w http.ResponseWriter, r *http.Req
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request payload"})
 		return
 	}
+
+	currentUser := middleware.GetUser(r)
+	if currentUser == nil || currentUser == store.AnonymousUser {
+		h.logger.Printf("ERROR: anonymous user trying to create workout")
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "authentication required to create workout"})
+		return
+	}
+
+	workout.UserID = currentUser.ID
 
 	createdWorkout, err := h.store.CreateWorkout(&workout)
 	if err != nil {
@@ -80,6 +90,25 @@ func (h *WorkoutHandler) HandlerDeleteWorkout(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	currentUser := middleware.GetUser(r)
+	if currentUser == nil || currentUser.IsAnonymous() {
+		h.logger.Printf("ERROR: anonymous user trying to delete workout")
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "authentication required to delete workout"})
+		return
+	}
+
+	ownerID, err := h.store.GetWorkoutOwner(workoutID)
+	if err != nil {
+		h.logger.Printf("ERROR: getting workout owner: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "could not verify workout ownership"})
+		return
+	}
+	if ownerID != currentUser.ID {
+		h.logger.Printf("ERROR: user %d trying to delete workout owned by user %d", currentUser.ID, ownerID)
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "you do not have permission to delete this workout"})
+		return
+	}
+
 	err = h.store.DeleteWorkout(int(workoutID))
 	if err != nil {
 		h.logger.Printf("ERROR: deleting workout: %v", err)
@@ -100,6 +129,25 @@ func (h *WorkoutHandler) HandlerUpdateWorkout(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		h.logger.Printf("ERROR: reading ID parameter: %v", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid workout ID parameter"})
+		return
+	}
+
+	currentUser := middleware.GetUser(r)
+	if currentUser == nil || currentUser.IsAnonymous() {
+		h.logger.Printf("ERROR: anonymous user trying to update workout")
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "authentication required to update workout"})
+		return
+	}
+
+	ownerID, err := h.store.GetWorkoutOwner(workoutID)
+	if err != nil {
+		h.logger.Printf("ERROR: getting workout owner: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "could not verify workout ownership"})
+		return
+	}
+	if ownerID != currentUser.ID {
+		h.logger.Printf("ERROR: user %d trying to update workout owned by user %d", currentUser.ID, ownerID)
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "you do not have permission to update this workout"})
 		return
 	}
 
