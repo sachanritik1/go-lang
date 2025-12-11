@@ -85,7 +85,7 @@ func (store *PostgresUserStore) GetUserByID(id int) (*User, error) {
 func (store *PostgresUserStore) GetUserByUsername(username string) (*User, error) {
 	query := `SELECT id, username, email, password_hash, bio, created_at, updated_at FROM users WHERE username = $1`
 	user := &User{}
-	err := store.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
+	err := store.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash.hash, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

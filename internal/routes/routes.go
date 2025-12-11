@@ -23,5 +23,8 @@ func SetupRoutes(app *app.App) *chi.Mux {
 	// r.Put("/users/{id}", app.UserHandler.HandlerUpdateUser)
 	// r.Delete("/users/{id}", app.UserHandler.HandlerDeleteUser)
 
+	// Token routes
+	r.Post("/tokens/authentication", app.TokenHandler.HandleCreateToken)
+
 	return r
 }
