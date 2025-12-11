@@ -7,23 +7,30 @@ import (
 
 func SetupRoutes(app *app.App) *chi.Mux {
 	r := chi.NewRouter()
+
+	r.Group(func(r chi.Router) {
+		r.Use(app.Middleware.Authenticate)
+
+		// Workout routes
+		// Protected route but AnonymousUser can create workouts
+		r.Get("/workouts", app.WorkoutHandler.HandlerGetAllWorkouts)
+		r.Get("/workouts/{id}", app.WorkoutHandler.HandlerGetWorkoutByID)
+
+		// The following routes require an authenticated user
+		r.Post("/workouts", app.Middleware.RequireUser(app.WorkoutHandler.HandlerCreateWorkout))
+		r.Put("/workouts/{id}", app.Middleware.RequireUser(app.WorkoutHandler.HandlerUpdateWorkout))
+		r.Delete("/workouts/{id}", app.Middleware.RequireUser(app.WorkoutHandler.HandlerDeleteWorkout))
+
+		r.Get("/users/{id}", app.Middleware.RequireUser(app.UserHandler.HandleGetUserByID))
+		// r.Put("/users/{id}", app.Middleware.RequireUser(app.UserHandler.HandlerUpdateUser))
+		// r.Delete("/users/{id}", app.Middleware.RequireUser(app.UserHandler.HandlerDeleteUser))
+
+	})
+
+	// Public routes
 	r.Get("/health", app.HealthCheckHandler)
 
-	// Workout routes
-	r.Post("/workouts", app.WorkoutHandler.HandlerCreateWorkout)
-	r.Get("/workouts/{id}", app.WorkoutHandler.HandlerGetWorkoutByID)
-	r.Get("/workouts", app.WorkoutHandler.HandlerGetAllWorkouts)
-	r.Put("/workouts/{id}", app.WorkoutHandler.HandlerUpdateWorkout)
-	r.Delete("/workouts/{id}", app.WorkoutHandler.HandlerDeleteWorkout)
-
-	// User routes
 	r.Post("/users", app.UserHandler.HandlerRegisterUser)
-	// r.Post("/users/login", app.UserHandler.HandlerRegisterUser)
-	r.Get("/users/{id}", app.UserHandler.HandleGetUserByID)
-	// r.Put("/users/{id}", app.UserHandler.HandlerUpdateUser)
-	// r.Delete("/users/{id}", app.UserHandler.HandlerDeleteUser)
-
-	// Token routes
 	r.Post("/tokens/authentication", app.TokenHandler.HandleCreateToken)
 
 	return r

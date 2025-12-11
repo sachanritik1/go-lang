@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/sachanritik1/go-lang/internal/api"
+	"github.com/sachanritik1/go-lang/internal/middleware"
 	"github.com/sachanritik1/go-lang/internal/store"
 	"github.com/sachanritik1/go-lang/migrations"
 )
@@ -17,6 +18,7 @@ type App struct {
 	WorkoutHandler *api.WorkoutHandler
 	UserHandler    *api.UserHandler
 	TokenHandler   *api.TokenHandler
+	Middleware     middleware.UserMiddleware
 	DB             *sql.DB
 }
 
@@ -43,11 +45,15 @@ func NewApp() (*App, error) {
 	userHandler := api.NewUserHandler(userStore, logger)
 	tokenHandler := api.NewTokenHandler(tokenStore, userStore, logger)
 
+	//middleware
+	userMiddleware := middleware.UserMiddleware{UserStore: userStore}
+
 	app := &App{
 		Logger:         logger,
 		WorkoutHandler: workoutHandler,
 		UserHandler:    userHandler,
 		TokenHandler:   tokenHandler,
+		Middleware:     userMiddleware,
 		DB:             pgDB,
 	}
 	return app, nil
