@@ -117,6 +117,7 @@ func (store *PostgresUserStore) DeleteUser(id int) error {
 
 func (store *PostgresUserStore) GetUserTokens(scope, tokenPlainText string) (*User, error) {
 	tokenHash := sha256.Sum256([]byte(tokenPlainText))
+	hashBytes := tokenHash[:]
 	query := `
 		SELECT u.id, u.username, u.email, u.password_hash, u.bio, u.created_at, u.updated_at
 		FROM users u
@@ -126,7 +127,7 @@ func (store *PostgresUserStore) GetUserTokens(scope, tokenPlainText string) (*Us
 	user := &User{
 		PasswordHash: password{},
 	}
-	err := store.db.QueryRow(query, scope, tokenHash, time.Now()).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash.hash, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
+	err := store.db.QueryRow(query, scope, hashBytes, time.Now()).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash.hash, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

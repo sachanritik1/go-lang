@@ -72,7 +72,14 @@ func (h *WorkoutHandler) HandlerGetWorkoutByID(w http.ResponseWriter, r *http.Re
 }
 
 func (h *WorkoutHandler) HandlerGetAllWorkouts(w http.ResponseWriter, r *http.Request) {
-	workouts, err := h.store.ListWorkouts()
+	user := middleware.GetUser(r)
+	if user == nil || user.IsAnonymous() {
+		h.logger.Printf("ERROR: anonymous user trying to list workouts")
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "authentication required to list workouts"})
+		return
+	}
+
+	workouts, err := h.store.ListWorkouts(user.ID)
 	if err != nil {
 		h.logger.Printf("ERROR: listing workouts: %v", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "could not retrieve workouts"})

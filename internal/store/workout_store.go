@@ -39,7 +39,7 @@ type WorkoutStore interface {
 	GetWorkoutByID(id int) (*Workout, error)
 	UpdateWorkout(workout *Workout) (*Workout, error)
 	DeleteWorkout(id int) error
-	ListWorkouts() ([]*Workout, error)
+	ListWorkouts(userID int) ([]*Workout, error)
 	GetWorkoutOwner(id int) (int, error)
 }
 
@@ -184,17 +184,9 @@ func (store *PostgresWorkoutStore) DeleteWorkout(id int) error {
 	return nil
 }
 
-func (store *PostgresWorkoutStore) ListWorkouts() ([]*Workout, error) {
-	query := `
-		SELECT 
-			w.id, w.title, w.description, w.duration_minutes, w.calories_burned,
-			we.id, we.sets, we.reps, we.weight
-		FROM workouts w
-		LEFT JOIN workout_entries we ON w.id = we.workout_id
-		ORDER BY w.id;
-	`
-
-	rows, err := store.db.Query(query)
+func (store *PostgresWorkoutStore) ListWorkouts(userID int) ([]*Workout, error) {
+	query := `SELECT id, title, description, duration_minutes, calories_burned FROM workouts WHERE user_id = $1`
+	rows, err := store.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -204,8 +196,6 @@ func (store *PostgresWorkoutStore) ListWorkouts() ([]*Workout, error) {
 
 	for rows.Next() {
 		var w Workout
-		var entry WorkoutEntry
-		var entryID sql.NullInt64
 
 		err := rows.Scan(
 			&w.ID,
@@ -213,10 +203,6 @@ func (store *PostgresWorkoutStore) ListWorkouts() ([]*Workout, error) {
 			&w.Description,
 			&w.DurationMinutes,
 			&w.CaloriesBurned,
-			&entryID,
-			&entry.Sets,
-			&entry.Reps,
-			&entry.Weight,
 		)
 		if err != nil {
 			return nil, err
@@ -227,10 +213,6 @@ func (store *PostgresWorkoutStore) ListWorkouts() ([]*Workout, error) {
 			workoutMap[w.ID] = &w
 		}
 
-		if entryID.Valid {
-			entry.ID = int(entryID.Int64)
-			workoutMap[w.ID].Entries = append(workoutMap[w.ID].Entries, entry)
-		}
 	}
 
 	if err = rows.Err(); err != nil {

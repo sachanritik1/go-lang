@@ -13,10 +13,12 @@ func SetupRoutes(app *app.App) *chi.Mux {
 
 		// Workout routes
 		// Protected route but AnonymousUser can create workouts
-		r.Get("/workouts", app.WorkoutHandler.HandlerGetAllWorkouts)
-		r.Get("/workouts/{id}", app.WorkoutHandler.HandlerGetWorkoutByID)
+		// r.Get("/workouts", app.WorkoutHandler.HandlerGetAllWorkouts)
 
 		// The following routes require an authenticated user
+		r.Get("/workouts", app.Middleware.RequireUser(app.WorkoutHandler.HandlerGetAllWorkouts))
+		r.Get("/workouts/{id}", app.Middleware.RequireUser(app.WorkoutHandler.HandlerGetWorkoutByID))
+
 		r.Post("/workouts", app.Middleware.RequireUser(app.WorkoutHandler.HandlerCreateWorkout))
 		r.Put("/workouts/{id}", app.Middleware.RequireUser(app.WorkoutHandler.HandlerUpdateWorkout))
 		r.Delete("/workouts/{id}", app.Middleware.RequireUser(app.WorkoutHandler.HandlerDeleteWorkout))

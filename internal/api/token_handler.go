@@ -72,7 +72,7 @@ func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Request)
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
-		"auth_token": token.PlainText,
+		"auth_token": token,
 	})
 
 }
