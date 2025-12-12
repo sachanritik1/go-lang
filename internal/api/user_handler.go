@@ -1,13 +1,13 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"regexp"
 
+	"github.com/sachanritik1/go-lang/internal/middleware"
 	"github.com/sachanritik1/go-lang/internal/store"
 	"github.com/sachanritik1/go-lang/internal/utils"
 )
@@ -109,24 +109,7 @@ func (h *UserHandler) HandlerRegisterUser(w http.ResponseWriter, r *http.Request
 
 }
 
-func (h *UserHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.ReadIDParam(r)
-	if err != nil {
-		h.logger.Printf("ERROR: reading ID parameter: %v", err)
-		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid user ID parameter"})
-		return
-	}
-
-	user, err := h.store.GetUserByID(int(userID))
-	if err != nil {
-		h.logger.Printf("ERROR: getting user by ID: %v", err)
-		if err == sql.ErrNoRows {
-			utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "user not found"})
-		} else {
-			utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "could not retrieve user"})
-		}
-		return
-	}
-
+func (h *UserHandler) HandleGetLoggedInUser(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"user": user})
 }
